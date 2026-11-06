@@ -33,6 +33,8 @@ FROM ghcr.io/atrioteam/dev-php:8.4-apache
 - `fpm`: php-fpm per i progetti con nginx, con le stesse estensioni delle immagini apache
   (bcmath, exif, gd, imagick, intl, pdo_mysql, redis, zip) + composer, installate con
   [docker-php-extension-installer](https://github.com/mlocati/docker-php-extension-installer).
+- Tutte le immagini dalla 7.2 in su hanno le stesse estensioni (8.0-apache anche soap);
+  5.6-apache ha solo mysql, mysqli e pdo_mysql.
 - Le basi debian buster/bullseye (php ≤ 8.0) usano `archive.debian.org`, perché fuori supporto.
 
 ## Build e pubblicazione
