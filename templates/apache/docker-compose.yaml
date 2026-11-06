@@ -1,0 +1,96 @@
+#
+# 'docker-compose up'
+#
+
+services:
+  web:
+    container_name: ${COMPOSE_PROJECT_NAME}_web
+    build:
+      context: .
+      dockerfile: docker/provision/web.dockerfile
+      args:
+        - APACHE_RUN_USER=${COMPOSE_APACHE_RUN_USER}
+        - APACHE_RUN_GROUP=${COMPOSE_APACHE_RUN_GROUP}
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        apache2-foreground
+    restart: "no"
+    volumes:
+      - ".:/var/www/html"
+      - "./docker/data/log:/var/log/apache2"
+      - "./docker/php/php.ini:/usr/local/etc/php/conf.d/custom.ini"
+    ports:
+      - ${COMPOSE_WEB_PORT}
+
+      # imposta l'hostname (come ritornato da gethostname()) INTERNAMENTE AL CONTAINER. Non ha effetto all'esterno
+    hostname: ${COMPOSE_PROJECT_NAME}.localhost
+    # utente default di esecuzione dei comandi nel container, utilizza utente del sistema host (es. bash)
+    user : ${COMPOSE_APACHE_RUN_USER}
+    environment:
+      - 'COMPOSER_AUTH={"github-oauth": {"github.com": "${GH_AUTH_TOKEN}"}, "http-basic": {"filamentthemes.com": {"username": "${FILAMENTTHEMES_USERNAME:-}", "password": "${FILAMENTTHEMES_PASSWORD:-}"}}}'
+    labels:
+      - ${COMPOSE_LABELS:-}
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # required for Ray running in docker
+  db:
+    container_name: ${COMPOSE_PROJECT_NAME}_db
+    image: {{DB_ENGINE}}:{{DB_VERSION}}
+    # (le variabili MYSQL_* sono supportate anche dall'immagine mariadb)
+    restart: "no"
+    environment:
+      MYSQL_ROOT_PASSWORD: secret
+      MYSQL_DATABASE : ${DB_DATABASE}
+      MYSQL_USER : ${DB_USERNAME}
+      MYSQL_PASSWORD : ${DB_PASSWORD}
+      # database di testing (creato da docker/provision/mysql.sh solo se TESTING_DB_DATABASE è valorizzata)
+      TESTING_DB_DATABASE: ${TESTING_DB_DATABASE:-}
+      TESTING_DB_USERNAME: ${TESTING_DB_USERNAME:-}
+      TESTING_DB_PASSWORD: ${TESTING_DB_PASSWORD:-}
+    volumes:
+      - ./docker/data/mysql:/var/lib/mysql
+      - ./docker/provision/mysql.sh:/docker-entrypoint-initdb.d/mysql.sh
+    ports:
+      - ${COMPOSE_MYSQL_PORT}
+  # raggiungibile su {hostname}:5000
+  phpmyadmin:
+    container_name: ${COMPOSE_PROJECT_NAME}_pma
+    image: phpmyadmin/phpmyadmin:5
+    restart: "no"
+    environment:
+      PMA_HOST: ${COMPOSE_PROJECT_NAME}_db
+      PMA_USER: root
+      PMA_PASSWORD: secret
+      UPLOAD_LIMIT : 200000000
+    ports:
+      - ${COMPOSE_PHPMYADMIN_PORT}
+    labels:
+      - ${COMPOSE_PMA_LABELS:-}
+  node:
+    container_name: ${COMPOSE_PROJECT_NAME}_node
+    image : node:22
+    volumes:
+      - "./:/app"
+    working_dir: /app
+    entrypoint: [ "/bin/bash", "./docker/provision/node.sh" ]
+    environment:
+      - VITE_CLIENT_PORT=${COMPOSE_VITE_CLIENT_PORT:-}
+      - VITE_MODE=${COMPOSE_VITE_MODE:-}
+    # map default vite port to port exposed by container
+    # (same port is used in vite.config.js)
+    ports:
+      - ${COMPOSE_VITE_CLIENT_PORT}:5173
+  # server smtp per lo sviluppo: intercetta tutte le mail inviate dall'applicazione
+  # interfaccia web su localhost:{porta host di COMPOSE_SMTP_PORT_2} o mail.{COMPOSE_PROJECT_NAME}.localhost (traefik)
+  smtp:
+    container_name: ${COMPOSE_PROJECT_NAME}_smtp
+    image: mailhog/mailhog
+    logging:
+      driver: 'none'
+    ports:
+      - ${COMPOSE_SMTP_PORT_1}
+      - ${COMPOSE_SMTP_PORT_2}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.mailhog-${COMPOSE_PROJECT_NAME}.rule=Host(`mail.${COMPOSE_PROJECT_NAME}.localhost`)"
+      - "traefik.http.services.mailhog-${COMPOSE_PROJECT_NAME}.loadbalancer.server.port=8025"

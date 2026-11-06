@@ -58,6 +58,29 @@ Build locale di prova (solo l'architettura dell'host, senza push):
 docker build -t dev-php-test:8.4-fpm dev-php/8.4/fpm
 ```
 
+## Template dei progetti
+
+`templates/` contiene i file docker dei progetti, usati da `.setup/docker.sh` del progetto base
+(atrioteam/base), che scarica questo repo e genera i file nel progetto:
+
+| Template | File generato nel progetto |
+|---|---|
+| `templates/<apache\|nginx>/docker-compose.yaml` | `docker-compose.yaml` |
+| `templates/<apache\|nginx>/web.dockerfile` | `docker/provision/web.dockerfile` |
+| `templates/nginx/default.conf` | `docker/nginx/default.conf` (solo nginx) |
+| `templates/provision/*` | `docker/provision/*` (sovrascritti se diversi) |
+| `templates/php/php.ini` | `docker/php/php.ini` (solo se manca) |
+
+Segnaposto: `{{PHP_VERSION}}`, `{{DB_ENGINE}}` (mysql | mariadb), `{{DB_VERSION}}`.
+
+`docker.sh` usa di default il branch `master`; per un altro branch, tag o commit, o per provare
+modifiche locali ai template:
+
+```bash
+RUNTIMES_REF=<branch|tag|commit> ./.setup/docker.sh
+RUNTIMES_DIR=~/Progetti/dev/runtimes ./.setup/docker.sh
+```
+
 ## Storico Docker Hub (`sirfaenor/dev-php`)
 
 Le immagini precedenti, solo amd64, restano su Docker Hub e non vengono più aggiornate.

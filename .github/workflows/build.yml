@@ -17,6 +17,8 @@ on:
     paths:
       - "*/*/*/**"
       - ".github/workflows/build.yml"
+      # template dei progetti, non sono immagini
+      - "!templates/**"
   schedule:
     # il 1° di ogni mese alle 03:00 UTC
     - cron: "0 3 1 * *"
