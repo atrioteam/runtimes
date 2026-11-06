@@ -1,7 +1,7 @@
 # runtimes
 
 Dockerfile delle immagini pubblicate su Docker Hub (`sirfaenor/*`).
-Struttura: `<immagine>/<tag>/Dockerfile` → `sirfaenor/<immagine>:<tag>`.
+Struttura: `<immagine>/<versione php>/<variante>/Dockerfile` → `sirfaenor/<immagine>:<versione php>-<variante>` (es. `dev-php/8.4/fpm` → `sirfaenor/dev-php:8.4-fpm`).
 
 Le versioni precedenti al tag 8.5 sono state ricostruite dalla history delle immagini già pubblicate
 (primo commit = stato pubblicato). Le modifiche successive vanno fatte qui e committate prima del push.
@@ -13,11 +13,20 @@ Le versioni precedenti al tag 8.5 sono state ricostruite dalla history delle imm
 | dev-php | 8.5-apache | 8.5.11 (trixie) | 2026-10-11 |
 | dev-php | 8.4-apache | 8.4.4 (bookworm) | 2025-03-12 |
 | dev-php | 8.3-apache | 8.3.2 | 2024-02-05 |
+| dev-php | 8.2-apache | — (da pubblicare) | — |
 | dev-php | 8.1-apache | 8.1.5 | 2022-07-05 |
 | dev-php | 8.0-apache | 8.0.23 | 2022-09-20 |
-| dev-php | 7.4-apache | 7.4.33 | 2024-09-23 |
+| dev-php | 7.4-apache | 7.4.33 | 2024-09-23 (build incompleta, Dockerfile corretto da ripubblicare) |
 | dev-php | 7.3-apache | 7.3.33 | 2023-10-06 |
 | dev-php | 7.2-apache | 7.2.34 | 2023-10-06 |
+| dev-php | 5.6-apache | — (da pubblicare) | — |
+
+### Varianti fpm (progetti con nginx)
+
+`dev-php/<versione>/fpm`: php-fpm con le stesse estensioni delle immagini apache
+(bcmath, exif, gd, imagick, intl, pdo_mysql, redis, zip) + composer, installate con
+[docker-php-extension-installer](https://github.com/mlocati/docker-php-extension-installer).
+Versioni: 8.5, 8.4, 8.3, 8.2, 8.1, 8.0, 7.4 — da pubblicare.
 
 ## Build multi-architettura (amd64 + arm64)
 
@@ -35,7 +44,7 @@ Build e push di un tag:
 
 ```bash
 docker buildx build --platform linux/amd64,linux/arm64 \
-  -t sirfaenor/dev-php:8.5-apache --push dev-php/8.5-apache
+  -t sirfaenor/dev-php:8.5-apache --push dev-php/8.5/apache
 ```
 
 Verifica delle architetture pubblicate:

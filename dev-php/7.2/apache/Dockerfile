@@ -1,9 +1,12 @@
-# sirfaenor/dev-php:8.0-apache
-# Ricostruito dalla history dell'immagine pubblicata il 2022-09-20 (php 8.0.23).
-FROM php:8.0-apache
+# sirfaenor/dev-php:7.2-apache
+# Ricostruito dalla history dell'immagine pubblicata il 2023-10-06 (php 7.2.34).
+FROM php:7.2-apache
+
+# debian buster/bullseye è EOL: i pacchetti sono ormai solo su archive.debian.org
+RUN sed -ri 's#http://(deb|security)\.debian\.org#http://archive.debian.org#' /etc/apt/sources.list
 
 ARG APACHE_RUN_USER=1000
-ARG APACHE_RUN_GROUP=root
+ARG APACHE_RUN_GROUP=www-data
 
 RUN useradd --uid $APACHE_RUN_USER --gid $APACHE_RUN_GROUP --shell /bin/bash --create-home appuser
 
@@ -24,19 +27,10 @@ RUN apt-get update && \
         libcurl3-dev \
         libonig-dev \
         git \
-        zsh \
-        libxml2-dev
+        zsh
 
-RUN pecl install redis && docker-php-ext-enable redis
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg
-RUN docker-php-ext-install -j$(nproc) gd
-RUN docker-php-ext-install iconv
-RUN docker-php-ext-install mbstring
-RUN docker-php-ext-install zip
-RUN docker-php-ext-install pdo
-RUN docker-php-ext-install pdo_mysql
-RUN docker-php-ext-install bcmath curl
-RUN docker-php-ext-install soap
+RUN docker-php-ext-configure gd
+RUN docker-php-ext-install -j$(nproc) gd iconv mbstring zip pdo pdo_mysql bcmath curl
 
 RUN apt-get install -y libmagickwand-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN printf "\n" | pecl install imagick

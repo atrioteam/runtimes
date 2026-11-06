@@ -1,10 +1,16 @@
-# sirfaenor/dev-php:7.3-apache
-# Ricostruito dalla history dell'immagine pubblicata il 2023-10-06 (php 7.3.33).
-FROM php:7.3-apache
+# sirfaenor/dev-php:7.4-apache
+# Da dotfiles-archived (lamp-php74-mysql57): sostituisce la build pubblicata il 2024-09-23,
+# che non conteneva le estensioni php (gd, redis, imagick, pdo_mysql...).
+FROM php:7.4-apache
+
+# debian buster/bullseye è EOL: i pacchetti sono ormai solo su archive.debian.org
+RUN sed -ri 's#http://(deb|security)\.debian\.org#http://archive.debian.org#' /etc/apt/sources.list
 
 ARG APACHE_RUN_USER=1000
 ARG APACHE_RUN_GROUP=www-data
 
+# crea utente con la shell di default
+#RUN useradd -rm --home-dir /home/appuser --shell /bin/bash --gid $INTERNAL_USER_GROUP --uid $INTERNAL_USER_ID
 RUN useradd --uid $APACHE_RUN_USER --gid $APACHE_RUN_GROUP --shell /bin/bash --create-home appuser
 
 RUN apt-get update && \
@@ -24,9 +30,11 @@ RUN apt-get update && \
         libcurl3-dev \
         libonig-dev \
         git \
-        zsh
+        zsh 
+        
+RUN pecl install redis && docker-php-ext-enable redis
 
-RUN docker-php-ext-configure gd
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg
 RUN docker-php-ext-install -j$(nproc) gd iconv mbstring zip pdo pdo_mysql bcmath curl
 
 RUN apt-get install -y libmagickwand-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
@@ -39,5 +47,6 @@ RUN a2enmod rewrite
 RUN a2enmod headers
 
 RUN usermod -aG root appuser
+
 RUN chown -R "$APACHE_RUN_USER":"$APACHE_RUN_GROUP" ./
 RUN chmod -R 755 ./

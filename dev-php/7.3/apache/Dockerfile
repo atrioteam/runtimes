@@ -1,6 +1,9 @@
-# sirfaenor/dev-php:7.2-apache
-# Ricostruito dalla history dell'immagine pubblicata il 2023-10-06 (php 7.2.34).
-FROM php:7.2-apache
+# sirfaenor/dev-php:7.3-apache
+# Ricostruito dalla history dell'immagine pubblicata il 2023-10-06 (php 7.3.33).
+FROM php:7.3-apache
+
+# debian buster/bullseye è EOL: i pacchetti sono ormai solo su archive.debian.org
+RUN sed -ri 's#http://(deb|security)\.debian\.org#http://archive.debian.org#' /etc/apt/sources.list
 
 ARG APACHE_RUN_USER=1000
 ARG APACHE_RUN_GROUP=www-data
