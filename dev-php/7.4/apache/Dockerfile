@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:7.4-apache
+# ghcr.io/atrioteam/dev-php:7.4-apache
 # Da dotfiles-archived (lamp-php74-mysql57): sostituisce la build pubblicata il 2024-09-23,
 # che non conteneva le estensioni php (gd, redis, imagick, pdo_mysql...).
 FROM php:7.4-apache

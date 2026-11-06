@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:5.6-apache
+# ghcr.io/atrioteam/dev-php:5.6-apache
 # Da dotfiles-archived (lamp-php56-mysql56). Tag non ancora pubblicato.
 FROM php:5.6-apache
 

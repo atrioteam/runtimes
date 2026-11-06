@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:8.4-apache
+# ghcr.io/atrioteam/dev-php:8.4-apache
 # Ricostruito dalla history dell'immagine pubblicata il 2025-03-12 (php 8.4.4, debian bookworm).
 FROM php:8.4-apache
 

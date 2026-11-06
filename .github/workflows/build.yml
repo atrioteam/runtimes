@@ -1,0 +1,190 @@
+# Build e push delle immagini su ghcr.io/atrioteam/<immagine>:<versione>-<variante>
+# (es. dev-php/8.4/fpm/Dockerfile -> ghcr.io/atrioteam/dev-php:8.4-fpm), multi-arch amd64 + arm64.
+#
+# Ogni architettura viene costruita su un runner nativo,
+# poi le due immagini vengono unite in un unico tag multi-arch.
+#
+# Quando parte:
+# - push sul branch principale: solo le immagini con file modificati
+# - ogni mese: tutte le immagini, senza cache (aggiornamenti di sicurezza di debian/php)
+# - manualmente (Actions > Build images > Run workflow): le immagini indicate, o tutte
+
+name: Build images
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - "*/*/*/**"
+      - ".github/workflows/build.yml"
+  schedule:
+    # il 1° di ogni mese alle 03:00 UTC
+    - cron: "0 3 1 * *"
+  workflow_dispatch:
+    inputs:
+      images:
+        description: "Cartelle da costruire separate da spazio (es. 'dev-php/8.4/fpm dev-php/8.5/apache'); vuoto = tutte"
+        required: false
+        default: ""
+      no_cache:
+        description: "Build senza cache"
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  # elenco delle cartelle <immagine>/<versione>/<variante> da costruire
+  plan:
+    runs-on: ubuntu-24.04
+    outputs:
+      images: ${{ steps.plan.outputs.images }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - id: plan
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.sha }}
+          INPUT_IMAGES: ${{ inputs.images }}
+        run: |
+          if [ "$EVENT" = workflow_dispatch ] && [ -n "$INPUT_IMAGES" ]; then
+            # cartelle indicate a mano
+            candidates=$(tr ' ' '\n' <<< "$INPUT_IMAGES" | sed 's#/$##')
+          elif [ "$EVENT" = push ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # cartelle <immagine>/<versione>/<variante> con file modificati
+            candidates=$(git diff --name-only "$BEFORE" "$AFTER" | cut -d/ -f1-3)
+          else
+            # schedule, dispatch senza input, primo push del branch: tutte
+            candidates=$(find . -mindepth 4 -maxdepth 4 -name Dockerfile -not -path './.*' -printf '%h\n' | sed 's#^\./##')
+          fi
+
+          dirs=()
+          for d in $(sort -u <<< "$candidates"); do
+            if [ -f "$d/Dockerfile" ]; then
+              dirs+=("$d")
+            elif [ "$EVENT" = workflow_dispatch ]; then
+              echo "::error::Dockerfile non trovato: $d"
+              exit 1
+            fi
+          done
+
+          json=$(jq -cn '$ARGS.positional' --args "${dirs[@]}")
+          echo "images=$json" >> "$GITHUB_OUTPUT"
+          echo "Immagini da costruire: $json"
+
+  # una build per cartella e architettura, push per digest (senza tag)
+  build:
+    needs: plan
+    if: needs.plan.outputs.images != '[]'
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+        platform: [linux/amd64, linux/arm64]
+    runs-on: ${{ matrix.platform == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-24.04' }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - id: names
+        env:
+          DIR: ${{ matrix.image }}
+          PLATFORM: ${{ matrix.platform }}
+        run: |
+          # dev-php/8.4/fpm -> nome dev-php, tag 8.4-fpm
+          name=$(cut -d/ -f1 <<< "$DIR")
+          tag="$(cut -d/ -f2 <<< "$DIR")-$(cut -d/ -f3 <<< "$DIR")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "key=${name}-${tag}-${PLATFORM##*/}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.image }}
+          platforms: ${{ matrix.platform }}
+          pull: true
+          no-cache: ${{ github.event_name == 'schedule' || inputs.no_cache == true }}
+          cache-from: type=gha,scope=${{ steps.names.outputs.key }}
+          cache-to: type=gha,mode=max,scope=${{ steps.names.outputs.key }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ steps.names.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+
+      - name: Salva digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          mkdir -p /tmp/digests
+          touch "/tmp/digests/${DIGEST#sha256:}"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: digest-${{ steps.names.outputs.key }}
+          path: /tmp/digests/*
+          retention-days: 1
+
+  # unisce le due architetture nel tag finale
+  merge:
+    needs: [plan, build]
+    if: needs.plan.outputs.images != '[]' && !cancelled()
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ${{ fromJSON(needs.plan.outputs.images) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - id: names
+        env:
+          DIR: ${{ matrix.image }}
+        run: |
+          name=$(cut -d/ -f1 <<< "$DIR")
+          tag="$(cut -d/ -f2 <<< "$DIR")-$(cut -d/ -f3 <<< "$DIR")"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: digest-${{ steps.names.outputs.name }}-${{ steps.names.outputs.tag }}-*
+          path: /tmp/digests
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Crea il tag multi-arch
+        working-directory: /tmp/digests
+        env:
+          IMAGE: ${{ env.REGISTRY }}/${{ steps.names.outputs.name }}
+          TAG: ${{ steps.names.outputs.tag }}
+        run: |
+          digests=$(ls)
+          count=$(wc -w <<< "$digests")
+          if [ "$count" -ne 2 ]; then
+            echo "::error::$IMAGE:$TAG: attese 2 architetture, trovate $count (build fallita?)"
+            exit 1
+          fi
+          docker buildx imagetools create -t "$IMAGE:$TAG" $(printf "$IMAGE@sha256:%s " $digests)
+          docker buildx imagetools inspect "$IMAGE:$TAG"

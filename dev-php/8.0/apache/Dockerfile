@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:8.0-apache
+# ghcr.io/atrioteam/dev-php:8.0-apache
 # Ricostruito dalla history dell'immagine pubblicata il 2022-09-20 (php 8.0.23).
 FROM php:8.0-apache
 

@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:8.0-fpm
+# ghcr.io/atrioteam/dev-php:8.0-fpm
 # Immagine base di sviluppo per i progetti con nginx: php-fpm 8.0 con le stesse estensioni di dev-php:*-apache.
 # I progetti la estendono ricreando appuser con uid/gid dell'utente host (v. template nginx/web.dockerfile).
 FROM php:8.0-fpm

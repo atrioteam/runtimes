@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:7.2-apache
+# ghcr.io/atrioteam/dev-php:7.2-apache
 # Ricostruito dalla history dell'immagine pubblicata il 2023-10-06 (php 7.2.34).
 FROM php:7.2-apache
 

@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:8.3-apache
+# ghcr.io/atrioteam/dev-php:8.3-apache
 # Ricostruito dalla history dell'immagine pubblicata il 2024-02-05 (php 8.3.2).
 # Nota: nell'immagine pubblicata non c'è il layer useradd/appuser.
 FROM php:8.3-apache

@@ -1,9 +1,9 @@
-# sirfaenor/dev-php:8.5-apache
+# ghcr.io/atrioteam/dev-php:8.5-apache
 # Immagine base di sviluppo (Laravel/Filament/Marvin): php 8.5 + apache con le estensioni usate nei progetti.
 #
 # build & push:
-#   docker build -t sirfaenor/dev-php:8.5-apache .
-#   docker push sirfaenor/dev-php:8.5-apache
+#   docker build -t ghcr.io/atrioteam/dev-php:8.5-apache .
+#   docker push ghcr.io/atrioteam/dev-php:8.5-apache
 FROM php:8.5-apache
 
 ARG APACHE_RUN_USER=1000

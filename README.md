@@ -1,54 +1,74 @@
 # runtimes
 
-Dockerfile delle immagini pubblicate su Docker Hub (`sirfaenor/*`).
-Struttura: `<immagine>/<versione php>/<variante>/Dockerfile` → `sirfaenor/<immagine>:<versione php>-<variante>` (es. `dev-php/8.4/fpm` → `sirfaenor/dev-php:8.4-fpm`).
+Docker development runtimes for PHP projects: multi-arch images (Apache, nginx/FPM) and compose templates.
 
-Le versioni precedenti al tag 8.5 sono state ricostruite dalla history delle immagini già pubblicate
-(primo commit = stato pubblicato). Le modifiche successive vanno fatte qui e committate prima del push.
+Immagini pubblicate su GitHub Container Registry, per `linux/amd64` e `linux/arm64`
+(sui Mac Apple Silicon un'immagine solo amd64 gira in emulazione ed è molto più lenta).
+
+Struttura: `<immagine>/<versione php>/<variante>/Dockerfile` → `ghcr.io/atrioteam/<immagine>:<versione php>-<variante>`
+(es. `dev-php/8.4/fpm` → `ghcr.io/atrioteam/dev-php:8.4-fpm`).
+
+```dockerfile
+FROM ghcr.io/atrioteam/dev-php:8.4-apache
+```
 
 ## Immagini
 
-| Immagine | Tag | PHP pubblicato | Data pubblicazione |
-|---|---|---|---|
-| dev-php | 8.5-apache | 8.5.11 (trixie) | 2026-10-11 |
-| dev-php | 8.4-apache | 8.4.4 (bookworm) | 2025-03-12 |
-| dev-php | 8.3-apache | 8.3.2 | 2024-02-05 |
-| dev-php | 8.2-apache | — (da pubblicare) | — |
-| dev-php | 8.1-apache | 8.1.5 | 2022-07-05 |
-| dev-php | 8.0-apache | 8.0.23 | 2022-09-20 |
-| dev-php | 7.4-apache | 7.4.33 | 2024-09-23 (build incompleta, Dockerfile corretto da ripubblicare) |
-| dev-php | 7.3-apache | 7.3.33 | 2023-10-06 |
-| dev-php | 7.2-apache | 7.2.34 | 2023-10-06 |
-| dev-php | 5.6-apache | — (da pubblicare) | — |
+### dev-php
 
-### Varianti fpm (progetti con nginx)
+| Versione | apache | fpm |
+|---|---|---|
+| 8.5 | ✓ | ✓ |
+| 8.4 | ✓ | ✓ |
+| 8.3 | ✓ | ✓ |
+| 8.2 | ✓ | ✓ |
+| 8.1 | ✓ | ✓ |
+| 8.0 | ✓ | ✓ |
+| 7.4 | ✓ | ✓ |
+| 7.3 | ✓ | |
+| 7.2 | ✓ | |
+| 5.6 | ✓ | |
 
-`dev-php/<versione>/fpm`: php-fpm con le stesse estensioni delle immagini apache
-(bcmath, exif, gd, imagick, intl, pdo_mysql, redis, zip) + composer, installate con
-[docker-php-extension-installer](https://github.com/mlocati/docker-php-extension-installer).
-Versioni: 8.5, 8.4, 8.3, 8.2, 8.1, 8.0, 7.4 — da pubblicare.
+- `apache`: php + apache (mod_rewrite, headers), document root su `/var/www/html/public` (dalla 8.4).
+- `fpm`: php-fpm per i progetti con nginx, con le stesse estensioni delle immagini apache
+  (bcmath, exif, gd, imagick, intl, pdo_mysql, redis, zip) + composer, installate con
+  [docker-php-extension-installer](https://github.com/mlocati/docker-php-extension-installer).
+- Le basi debian buster/bullseye (php ≤ 8.0) usano `archive.debian.org`, perché fuori supporto.
 
-## Build multi-architettura (amd64 + arm64)
+## Build e pubblicazione
 
-Le immagini vanno pubblicate per `linux/amd64` e `linux/arm64`: sui Mac Apple Silicon
-un'immagine solo amd64 gira in emulazione ed è molto più lenta.
+Le immagini vengono costruite e pubblicate dalla GitHub Action [`build.yml`](.github/workflows/build.yml),
+con ogni architettura costruita su un runner nativo (niente emulazione):
 
-Setup una tantum (builder buildx + emulazione arm64 su host amd64):
-
-```bash
-docker run --privileged --rm tonistiigi/binfmt --install arm64
-docker buildx create --name multi --driver docker-container --use
-```
-
-Build e push di un tag:
-
-```bash
-docker buildx build --platform linux/amd64,linux/arm64 \
-  -t sirfaenor/dev-php:8.5-apache --push dev-php/8.5/apache
-```
+- **push** sul branch principale: solo le immagini con file modificati;
+- **il 1° di ogni mese**: tutte le immagini, senza cache (aggiornamenti di sicurezza di debian/php);
+- **manuale** (Actions → Build images → Run workflow): le cartelle indicate (es. `dev-php/8.4/fpm`), o tutte.
 
 Verifica delle architetture pubblicate:
 
 ```bash
-docker buildx imagetools inspect sirfaenor/dev-php:8.5-apache
+docker buildx imagetools inspect ghcr.io/atrioteam/dev-php:8.4-apache
 ```
+
+Build locale di prova (solo l'architettura dell'host, senza push):
+
+```bash
+docker build -t dev-php-test:8.4-fpm dev-php/8.4/fpm
+```
+
+## Storico Docker Hub (`sirfaenor/dev-php`)
+
+Le immagini precedenti, solo amd64, restano su Docker Hub e non vengono più aggiornate.
+I Dockerfile delle versioni precedenti alla 8.5 sono stati ricostruiti dalla history di quelle immagini
+(primo commit = stato pubblicato).
+
+| Tag | PHP pubblicato | Data pubblicazione |
+|---|---|---|
+| 8.5-apache | 8.5.11 (trixie) | 2026-10-11 |
+| 8.4-apache | 8.4.4 (bookworm) | 2025-03-12 |
+| 8.3-apache | 8.3.2 | 2024-02-05 |
+| 8.1-apache | 8.1.5 | 2022-07-05 |
+| 8.0-apache | 8.0.23 | 2022-09-20 |
+| 7.4-apache | 7.4.33 | 2024-09-23 (build incompleta, senza estensioni php) |
+| 7.3-apache | 7.3.33 | 2023-10-06 |
+| 7.2-apache | 7.2.34 | 2023-10-06 |

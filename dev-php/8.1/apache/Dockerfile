@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:8.1-apache
+# ghcr.io/atrioteam/dev-php:8.1-apache
 # Ricostruito dalla history dell'immagine pubblicata il 2022-07-05 (php 8.1.5).
 # Nota: nell'immagine pubblicata non ci sono appuser né document root su /public.
 FROM php:8.1-apache

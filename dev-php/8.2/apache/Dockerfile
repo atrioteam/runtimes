@@ -1,4 +1,4 @@
-# sirfaenor/dev-php:8.2-apache
+# ghcr.io/atrioteam/dev-php:8.2-apache
 # Da dotfiles-archived (lamp-php82-mysql57). Tag non ancora pubblicato.
 FROM php:8.2-apache
 
