@@ -52,7 +52,8 @@ RUN docker-php-ext-configure intl && docker-php-ext-install intl
 
 RUN php -r "readfile('http://getcomposer.org/installer');" | php -- --install-dir=/usr/bin/ --filename=composer
 
-RUN sed -i '/disable ghostscript format types/,+6d' /etc/ImageMagick-6/policy.xml
+# abilita la conversione di pdf/ps con ghostscript (path diverso tra ImageMagick 6 e 7)
+RUN for f in /etc/ImageMagick-*/policy.xml; do sed -i '/disable ghostscript format types/,+6d' "$f"; done
 
 RUN a2enmod rewrite
 RUN a2enmod headers
